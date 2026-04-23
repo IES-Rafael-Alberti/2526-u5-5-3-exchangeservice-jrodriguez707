@@ -118,5 +118,48 @@ class ExchangeServiceDesignedBatteryTest : DescribeSpec({
 
                 result shouldBe (100 * 0.8 * 150).toLong()
             }
+            it("usa segunda ruta intermedia si la primera falla") {
+
+                every { provider.rate("USDJPY") } throws IllegalArgumentException()
+                every { provider.rate("USDGBP") } throws IllegalArgumentException()
+                every { provider.rate("USDEUR") } returns 0.9
+                every { provider.rate("EURJPY") } returns 150.0
+
+                val result = service.exchange(Money(100, "USD"), "JPY")
+
+                result shouldBe (100 * 0.9 * 150).toLong()
+            }
         }
+        describe("sin ruta válida") {
+
+            val provider = mockk<ExchangeRateProvider>()
+            val service = ExchangeService(
+                provider,
+                supportedCurrencies = setOf("USD", "EUR", "GBP", "JPY")
+            )
+
+            it("lanza excepción si no existe conversión") {
+
+                every { provider.rate(any()) } throws IllegalArgumentException()
+
+                shouldThrow<IllegalArgumentException> {
+                    service.exchange(Money(100, "USD"), "JPY")
+                }
+            }
+            it("verifica orden de llamadas en cruce") {
+
+                every { provider.rate("USDJPY") } throws IllegalArgumentException()
+                every { provider.rate("USDGBP") } returns 0.8
+                every { provider.rate("GBPJPY") } returns 150.0
+
+                service.exchange(Money(100, "USD"), "JPY")
+
+                verifySequence {
+                    provider.rate("USDJPY")
+                    provider.rate("USDGBP")
+                    provider.rate("GBPJPY")
+                }
+            }
+        }
+
 }})
