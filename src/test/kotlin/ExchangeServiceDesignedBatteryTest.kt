@@ -23,26 +23,65 @@ class ExchangeServiceDesignedBatteryTest : DescribeSpec({
 
     describe("battery designed from equivalence classes for ExchangeService") {
 
-        describe("input validation") {
-            val provider = mockk<ExchangeRateProvider>()
+        describe("validación de entrada") {
+
+            val provider = mockk<ExchangeRateProvider>(relaxed = true)
             val service = ExchangeService(provider)
 
-            it("throws an exception when the amount is zero") {
+            it("lanza excepción si la cantidad es 0") {
                 shouldThrow<IllegalArgumentException> {
                     service.exchange(Money(0, "USD"), "EUR")
                 }
             }
 
-            it("throws an exception when the amount is negative") {
+            it("lanza excepción si la cantidad es negativa") {
+                shouldThrow<IllegalArgumentException> {
+                    service.exchange(Money(-10, "USD"), "EUR")
+                }
             }
 
-            it("throws an exception when the source currency code is invalid") {
+            it("lanza excepción si moneda origen no tiene 3 letras") {
+                shouldThrow<IllegalArgumentException> {
+                    service.exchange(Money(100, "US"), "EUR")
+                }
             }
 
-            it("throws an exception when the target currency code is invalid") {
-
+            it("lanza excepción si moneda destino no tiene 3 letras") {
+                shouldThrow<IllegalArgumentException> {
+                    service.exchange(Money(100, "USD"), "EURO")
+                }
             }
         }
+        describe("misma moneda") {
 
-       //..
+            it("devuelve misma cantidad sin consultar proveedor") {
+
+                val real = InMemoryExchangeRateProvider(emptyMap())
+                val spy = spyk(real)
+
+                val service = ExchangeService(spy)
+
+                val result = service.exchange(Money(1000, "USD"), "USD")
+
+                result shouldBe 1000
+
+                verify(exactly = 0) { spy.rate(any()) }
+            }
+        }
+        describe("conversión directa") {
+
+            val provider = mockk<ExchangeRateProvider>()
+            val service = ExchangeService(provider)
+
+            it("convierte correctamente con tasa directa") {
+
+                every { provider.rate("USDEUR") } returns 0.92
+
+                val result = service.exchange(Money(1000, "USD"), "EUR")
+
+                result shouldBe 920
+
+                verify(exactly = 1) { provider.rate("USDEUR") }
+            }
+        }
 }})

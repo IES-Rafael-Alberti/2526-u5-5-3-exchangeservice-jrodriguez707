@@ -411,6 +411,35 @@ Identifica **al menos 3 casos de prueba de tu batería** y explica:
 
 Incluye enlaces a los tests correspondientes.
 
+Se han definido varios casos de prueba basados en clases de equivalencia del servicio ExchangeService.
+
+Caso 1: Validación de cantidad igual a 0
+```kotlin
+service.exchange(Money(0, "USD"), "EUR")
+```
+Clase de equivalencia: inválida (cantidad no positiva)
+Condición validada: validación de entrada del método exchange
+Representatividad: es un caso límite inferior que el sistema debe rechazar inmediatamente para evitar cálculos inválidos
+Caso 2: Conversión directa con tasa existente
+```kotlin
+every { provider.rate("USDEUR") } returns 0.92
+
+val result = service.exchange(Money(1000, "USD"), "EUR")
+```
+Clase de equivalencia: válida (monedas distintas con conversión directa)
+Condición validada: uso de tasa directa del proveedor
+Representatividad: es el caso más habitual del sistema, donde no es necesario aplicar lógica de búsqueda adicional
+Caso 3: Conversión cruzada válida
+```kotlin
+every { provider.rate("USDGBP") } returns 0.8
+every { provider.rate("GBPJPY") } returns 150.0
+
+val result = service.exchange(Money(100, "USD"), "JPY")
+```
+Clase de equivalencia: válida (sin tasa directa pero con ruta intermedia)
+Condición validada: lógica de conversión cruzada
+Representatividad: valida la parte más compleja del servicio, la búsqueda de rutas alternativas
+
 
 #### 🔹 2) CE f) Se han efectuado pruebas unitarias de clases y funciones
 
@@ -425,6 +454,45 @@ Selecciona uno de tus tests y explica cómo se trata de una **prueba unitaria re
 Justifica por qué este test cumple con el concepto de prueba unitaria según el módulo 
 
 Incluye enlace al test.
+
+Test seleccionado: conversión directa
+```kotlin
+every { provider.rate("USDEUR") } returns 0.92
+
+val result = service.exchange(Money(1000, "USD"), "EUR")
+
+result shouldBe 920
+```
+Método probado
+
+Se está probando el método:
+```kotlin
+exchange(money: Money, targetCurrency: String)
+```
+de la clase ExchangeService.
+
+Aislamiento de dependencias
+
+La dependencia ExchangeRateProvider se sustituye mediante un stub creado con MockK:
+```kotlin
+val provider = mockk<ExchangeRateProvider>()
+every { provider.rate("USDEUR") } returns 0.92
+```
+Esto permite aislar completamente la lógica de ExchangeService sin depender de implementaciones reales como InMemoryExchangeRateProvider.
+
+Entrada y salida
+
+Entrada: Money(1000, "USD") y "EUR"
+Salida esperada: 920
+
+Justificación
+
+Es una prueba unitaria porque:
+
+Se prueba una sola clase
+Se aísla completamente la dependencia externa
+Es determinista
+No depende de recursos externos ni estado compartido
 
 
 #### 🔹 3) CE g) Se han implementado pruebas automáticas
