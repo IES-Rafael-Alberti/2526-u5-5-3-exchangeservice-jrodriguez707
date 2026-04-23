@@ -84,4 +84,39 @@ class ExchangeServiceDesignedBatteryTest : DescribeSpec({
                 verify(exactly = 1) { provider.rate("USDEUR") }
             }
         }
+        describe("conversión directa") {
+
+            val provider = mockk<ExchangeRateProvider>()
+            val service = ExchangeService(provider)
+
+            it("convierte correctamente con tasa directa") {
+
+                every { provider.rate("USDEUR") } returns 0.92
+
+                val result = service.exchange(Money(1000, "USD"), "EUR")
+
+                result shouldBe 920
+
+                verify(exactly = 1) { provider.rate("USDEUR") }
+            }
+        }
+        describe("conversión cruzada") {
+
+            val provider = mockk<ExchangeRateProvider>()
+            val service = ExchangeService(
+                provider,
+                supportedCurrencies = setOf("USD", "EUR", "GBP", "JPY")
+            )
+
+            it("usa cruce cuando no hay tasa directa") {
+
+                every { provider.rate("USDJPY") } throws IllegalArgumentException()
+                every { provider.rate("USDGBP") } returns 0.8
+                every { provider.rate("GBPJPY") } returns 150.0
+
+                val result = service.exchange(Money(100, "USD"), "JPY")
+
+                result shouldBe (100 * 0.8 * 150).toLong()
+            }
+        }
 }})
