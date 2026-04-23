@@ -511,6 +511,35 @@ Incluye enlace a:
 * ejecución de tests
 
 
+Herramientas utilizadas
+Kotest para la estructura de los tests
+MockK para los dobles de prueba
+Gradle para la ejecución de los tests
+Ejecución automática
+
+Los tests se ejecutan mediante:
+```
+./gradlew test
+```
+También pueden ejecutarse desde el entorno de desarrollo (IntelliJ IDEA) usando el sistema de ejecución de tests.
+
+Evidencia de automatización
+
+Los tests verifican automáticamente el comportamiento mediante aserciones como:
+```
+shouldBe
+shouldThrow
+verify
+verifySequence
+```
+Si el comportamiento del sistema cambia, los tests fallan automáticamente sin intervención manual.
+
+Configuración
+```kotlin
+testImplementation("io.kotest:kotest-runner-junit5")
+testImplementation("io.mockk:mockk")
+```
+
 #### 🔹 4) CE h) Se han documentado las incidencias detectadas
 
 **Pregunta:**
@@ -524,6 +553,29 @@ Durante el desarrollo de la batería de pruebas, identifica **al menos una incid
 Relaciona esto con la importancia de documentar incidencias en el proceso de pruebas 
 
 Incluye enlace al test implicado.
+
+Durante el desarrollo de la batería de pruebas se detectó un problema en la lógica de conversión cruzada.
+
+Test que detectó la incidencia
+```kotlin
+every { provider.rate("USDJPY") } throws IllegalArgumentException()
+every { provider.rate("USDGBP") } returns 0.8
+every { provider.rate("GBPJPY") } returns 150.0
+```
+Comportamiento incorrecto
+
+Inicialmente el servicio no intentaba rutas alternativas cuando la primera conversión fallaba, lo que provocaba que no se realizara la conversión cruzada aunque existieran rutas válidas.
+
+Solución
+
+Se modificó el método exchange para:
+
+Capturar fallos de la tasa directa
+Continuar probando monedas intermedias
+Permitir una conversión cruzada de un solo salto
+Importancia
+
+Este caso demuestra que las pruebas no solo validan resultados, sino que también ayudan a detectar errores de diseño en la lógica del sistema.
 
 
 #### 🔹 5) CE i) Se han utilizado dobles de prueba para aislar los componentes durante las pruebas
@@ -540,6 +592,45 @@ Relaciona tu explicación con la necesidad de reducir el acoplamiento en pruebas
 
 Incluye enlaces a los tests donde se utilicen.
 
+Stub
+```kotlin
+every { provider.rate("USDEUR") } returns 0.92
+```
+Objetivo: devolver un valor fijo controlado
+Uso: conversión directa
+Ventaja: simplicidad y control del resultado
+Spy
+```kotlin
+val real = InMemoryExchangeRateProvider(mapOf("USDEUR" to 0.92))
+val spy = spyk(real)
+```
+Objetivo: usar implementación real y observar interacciones
+Uso: comprobar llamadas reales al proveedor
+Ventaja: combina comportamiento real con verificación
+Mock
+```kotlin
+every { provider.rate("USDGBP") } returns 0.8
+every { provider.rate("GBPJPY") } returns 150.0
+```
+Objetivo: control total del comportamiento
+Uso: simular rutas complejas o fallos
+Ventaja: permite construir escenarios imposibles con datos reales
+Problema de usar siempre InMemoryExchangeRateProvider
+
+Si se usara siempre:
+
+No se podrían simular errores
+No se podrían forzar rutas alternativas
+No se podría controlar el flujo de ejecución
+Los tests estarían acoplados a datos reales
+Relación con el acoplamiento
+
+El uso de dobles permite:
+
+Aislar el servicio ExchangeService
+Reducir dependencias externas
+Hacer tests deterministas
+Probar escenarios extremos sin infraestructura real
 
 ## Fuente conceptual
 
